@@ -1,5 +1,11 @@
 // https://github.com/imax9000/Arduino-PID-Library
 #include <PID_v2.h>
+#include <ros.h>
+#include <std_msgs/Int16.h>
+
+HardwareSerial Serial3(PB11, PB10);
+
+#define TOPIC_NAME "motor_pid"
 
 #define Kp 0.5
 #define Ki 2
@@ -19,8 +25,8 @@
 #define DEBUG 0
 
 #if DEBUG == 1
-#define debug(x) Serial1.print(x)
-#define debugln(x) Serial1.println(x)
+#define debug(x) Serial3.print(x)
+#define debugln(x) Serial3.println(x)
 #else
 #define debug(x)
 #define debugln(x)
@@ -34,15 +40,29 @@ int rpm = 0, motorPwm = 0;
 
 long previousMillis = 0, currentMillis = 0;
 
-long setPoint = 0;
+int16_t setPoint = 0;
+
 
 PID_v2 pid(Kp, Ki, Kd, PID::Direct);
 
+void messageCb( const std_msgs::Int16 &sp) {
+  setPoint = sp.data;
+}
+ros::NodeHandle nh;
+ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb );
+
 void setup()
 {
-  Serial1.begin(9600);
+  Serial3.begin(115200);
+  
+  (nh.getHardware())->setPort(&Serial1);
+  (nh.getHardware())->setBaud(115200);
+  nh.initNode();
+  nh.subscribe(sub);
+
   pinMode(ENC_A, INPUT_PULLUP);
   pinMode(ENC_B, INPUT_PULLUP);
+
   attachInterrupt(digitalPinToInterrupt(ENC_A), ISR_A, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENC_B), ISR_B, CHANGE);
 
@@ -84,7 +104,10 @@ void loop()
 
     enc_counter = 0;
   }
+  nh.spinOnce();
 }
+
+
 
 void ISR_A()
 {
