@@ -92,7 +92,7 @@ void loop()
 
     analogWrite(MOTOR_PWM, motorPwm);
     digitalWrite(MOTOR_DIR, motorDir);
-    
+
     // Only update display when there is a reading
     if (motorPwm > 0 || rpm > 0) {
       debug("PWM VALUE: ");
