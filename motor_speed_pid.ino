@@ -18,6 +18,8 @@ HardwareSerial Serial3(PB11, PB10);
 #define MOTOR_PWM PB1
 #define MOTOR_DIR PB0
 
+#define motorDir HIGH
+
 #define MIN_IN_SECS 60
 #define PWM_RANGE 65535
 
@@ -54,7 +56,7 @@ ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb );
 void setup()
 {
   Serial3.begin(115200);
-  
+
   (nh.getHardware())->setPort(&Serial1);
   (nh.getHardware())->setBaud(115200);
   nh.initNode();
@@ -87,8 +89,10 @@ void loop()
     // Get pid output
     motorPwm = pid.Run(rpm);
 
-    analogWrite(MOTOR_PWM, motorPwm);
 
+    analogWrite(MOTOR_PWM, motorPwm);
+    digitalWrite(MOTOR_DIR, motorDir);
+    
     // Only update display when there is a reading
     if (motorPwm > 0 || rpm > 0) {
       debug("PWM VALUE: ");
