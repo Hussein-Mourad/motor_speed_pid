@@ -1,5 +1,3 @@
-// https://github.com/imax9000/Arduino-PID-Library
-#include <PID_v2.h>
 #include <ros.h>
 #include <std_msgs/Int16.h>
 
@@ -24,7 +22,7 @@ HardwareSerial Serial3(PB11, PB10);
 #define PWM_RANGE 65535
 
 // A simple way to toggle debugging and changing the used serial
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG == 1
 #define debug(x) Serial3.print(x)
@@ -40,18 +38,18 @@ volatile long long enc_counter = 0;
 
 int rpm = 0, motorPwm = 0;
 
-long previousMillis = 0, currentMillis = 0;
+unsigned long previousMillis = 0, currentMillis = 0, deltaTime=0;
 
 int16_t setPoint = 0;
+double error,lastError, proportional, integral, derivative;
 
-
-PID_v2 pid(Kp, Ki, Kd, PID::Direct);
-
-void messageCb( const std_msgs::Int16 &sp) {
+void messageCb(const std_msgs::Int16 &sp)
+{
   setPoint = sp.data;
 }
+
 ros::NodeHandle nh;
-ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb );
+ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb);
 
 void setup()
 {
@@ -72,29 +70,30 @@ void setup()
   pinMode(MOTOR_DIR, OUTPUT);
 
   previousMillis = millis();
-
-  pid.SetOutputLimits(0, PWM_RANGE);
-  pid.Start(rpm, 0, setPoint); // input, outpt, setpoint
 }
 
 void loop()
 {
   currentMillis = millis();
-  if (currentMillis - previousMillis > interval) {
+  deltaTime = currentMillis - previousMillis;
+
+  if (deltaTime > interval)
+  {
     previousMillis = currentMillis;
 
     // Calculate RPM
     rpm = (float)(enc_counter * MIN_IN_SECS / ENC_REV_COUNT);
 
-    // Get pid output
-    motorPwm = pid.Run(rpm);
+    // get motor pid value
+    motorPwm = calc_pid(rpm, deltaTime);
 
-
+    // set motor output
     analogWrite(MOTOR_PWM, motorPwm);
     digitalWrite(MOTOR_DIR, motorDir);
 
     // Only update display when there is a reading
-    if (motorPwm > 0 || rpm > 0) {
+    if (motorPwm > 0 || rpm > 0)
+    {
       debug("PWM VALUE: ");
       debug(motorPwm);
       debug('\t');
@@ -105,13 +104,20 @@ void loop()
       debug(rpm);
       debugln(" RPM");
     }
-
     enc_counter = 0;
   }
   nh.spinOnce();
 }
 
-
+int calc_pid(int input, unsigned long deltaTime){
+  error = setPoint - input;
+  integral += (error * deltaTime);
+  derivative = (error - lastError) / deltaTime;
+  lastError = error;
+  int output = Kp * error + Ki * integral + Kd * derivative;
+  output = min(0,max(output, PWM_RANGE));
+  return output;
+}
 
 void ISR_A()
 {
