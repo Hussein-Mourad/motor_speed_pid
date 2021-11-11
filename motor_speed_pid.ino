@@ -20,7 +20,7 @@ HardwareSerial Serial3(PB11, PB10);
 #define INPUT_MAX_RANGE 300
 
 #define MIN_IN_SECS 60
-#define PWM_RANGE 65535
+#define PWM_MAX_RANGE 65535
 
 // A simple way to toggle debugging and changing the used serial
 #define DEBUG 1
@@ -35,7 +35,9 @@ HardwareSerial Serial3(PB11, PB10);
 
 long enc_count = 0, last_count;
 
-int rpm = 0, motorPwm = 0;
+double rpm = 0;
+
+double motorPwm = 0;
 
 const int deltaTime = 10; // 10ms interval
 
@@ -98,17 +100,14 @@ void calc_pid()
   motorPwm = Kp * error + Ki * integral + Kd * derivative;
 
   if (motorPwm < 0)
-  {
     digitalWrite(MOTOR_DIR, LOW);
-  }
   else
-  {
     digitalWrite(MOTOR_DIR, HIGH);
-  }
 
   motorPwm = abs(motorPwm);
-  motorPwm = constrain(motorPwm, 0, INPUT_MAX_RANGE);
-  motorPwm = map(motorPwm, 0, INPUT_MAX_RANGE, 0, PWM_RANGE);
+  motorPwm = constrain(motorPwm, 0, PWM_MAX_RANGE);
+//  motorPwm = constrain(motorPwm, 0, INPUT_MAX_RANGE);
+//  motorPwm = map(motorPwm, 0, INPUT_MAX_RANGE, 0, PWM_MAX_RANGE);
 
   debug("PWM: ");
   debug(motorPwm);
