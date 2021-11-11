@@ -1,5 +1,6 @@
 #include <ros.h>
 #include <std_msgs/Int16.h>
+#include "Timer.h"
 
 HardwareSerial Serial3(PB11, PB10);
 
@@ -16,7 +17,7 @@ HardwareSerial Serial3(PB11, PB10);
 #define MOTOR_PWM PB1
 #define MOTOR_DIR PB0
 
-#define INPUT_MAX_RANGE 7200
+#define INPUT_MAX_RANGE 300
 
 #define motorDir HIGH
 
@@ -40,18 +41,19 @@ volatile long long enc_counter = 0;
 
 int rpm = 0, motorPwm = 0;
 
-unsigned long previousMillis = 0, currentMillis = 0, deltaTime = 0;
+unsigned long  deltaTime = 0;
 
 int16_t setPoint = 0;
 double error, lastError, proportional, integral, derivative;
 
 void messageCb(const std_msgs::Int16 &sp)
 {
-  setPoint = max(0, min(sp.data, INPUT_MAX_RANGE));
+  setPoint = constrain(sp.data, 0, INPUT_MAX_RANGE);
 }
 
 ros::NodeHandle nh;
 ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb);
+Timer timer;
 
 void setup()
 {
@@ -71,16 +73,14 @@ void setup()
   pinMode(MOTOR_PWM, OUTPUT);
   pinMode(MOTOR_DIR, OUTPUT);
 
-  previousMillis = millis();
+  timer.every(interval, calc_pid);
 }
 
 void loop()
 {
   if (Serial3.available() > 0) {
-    setPoint = max(0, min(Serial3.read(), INPUT_MAX_RANGE));
+    setPoint = constrain(Serial3.read(), 0, INPUT_MAX_RANGE);
   }
-
-  calc_pid();
 
   // Only update display when there is a reading
   if (motorPwm > 0 || rpm > 0)
@@ -96,13 +96,11 @@ void loop()
     debugln(" RPM");
   }
   // nh.spinOnce();
+  timer.update();
 }
 
 void calc_pid() {
-  currentMillis = millis();
-  deltaTime = currentMillis - previousMillis;
-  if (deltaTime > interval) {
-
+  deltaTime = interval;
     rpm = (enc_counter / ENC_REV_COUNT) * (MIN_IN_SECS * 1000 / deltaTime) ;
 
     error = setPoint - rpm;
@@ -118,11 +116,10 @@ void calc_pid() {
     }
 
     output = abs(output);
+    output = constrain(output, 0, INPUT_MAX_RANGE);
     output = map(output, 0, INPUT_MAX_RANGE, 0, PWM_RANGE);
 
-    previousMillis = currentMillis;
     enc_counter = 0;
-  }
 
   analogWrite(MOTOR_PWM, OUTPUT);
 }
