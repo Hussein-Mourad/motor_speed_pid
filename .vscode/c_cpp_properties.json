@@ -46,6 +46,7 @@
                 "/home/hussein/.arduino15/packages/STMicroelectronics/hardware/stm32/2.1.0/cores/arduino",
                 "/home/hussein/.arduino15/packages/STMicroelectronics/hardware/stm32/2.1.0/variants/STM32F1xx/F103C4T_F103C6(T-U)",
                 "/mnt/d/Arduino/libraries/Rosserial_Arduino_Library/src",
+                "/mnt/d/Arduino/libraries/Timer",
                 "/home/hussein/.arduino15/packages/STMicroelectronics/hardware/stm32/2.1.0/libraries/SrcWrapper/src",
                 "/home/hussein/.arduino15/packages/STMicroelectronics/tools/xpack-arm-none-eabi-gcc/10.2.1-1.1/arm-none-eabi/include/c++/10.2.1",
                 "/home/hussein/.arduino15/packages/STMicroelectronics/tools/xpack-arm-none-eabi-gcc/10.2.1-1.1/arm-none-eabi/include/c++/10.2.1/arm-none-eabi",

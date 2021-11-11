@@ -6,16 +6,16 @@ HardwareSerial Serial3(PB11, PB10);
 
 #define TOPIC_NAME "motor_pid"
 
-#define Kp 0.5
-#define Ki 2
-#define Kd 1
+#define Kp 0.07
+#define Ki 0.03
+#define Kd 0.02
 
 #define ENC_REV_COUNT 540
-#define ENC_A PB12
-#define ENC_B PB13
+#define ENC_A PA4
+#define ENC_B PA5
 
-#define MOTOR_PWM PB1
-#define MOTOR_DIR PB0
+#define MOTOR_PWM PA0
+#define MOTOR_DIR PA1
 
 #define INPUT_MAX_RANGE 300
 
@@ -35,13 +35,13 @@ HardwareSerial Serial3(PB11, PB10);
 
 const int interval = 10; // 10 ms
 
-volatile long long enc_counter = 0;
+volatile long long enc_counter = 0, last_count;
 
 int rpm = 0;
 
 unsigned long  deltaTime = 0;
 
-int16_t setPoint = 0;
+int setPoint = 0;
 double error, lastError, proportional, integral, derivative;
 
 void messageCb(const std_msgs::Int16 &sp)
@@ -51,14 +51,15 @@ void messageCb(const std_msgs::Int16 &sp)
 
 ros::NodeHandle nh;
 ros::Subscriber<std_msgs::Int16> sub(TOPIC_NAME, &messageCb);
-Timer timer;
+
+Timer t;
 
 void setup()
 {
   Serial3.begin(115200);
 
-  (nh.getHardware())->setPort(&Serial1);
-  (nh.getHardware())->setBaud(115200);
+//  (nh.getHardware())->setPort(&Serial1);
+//  (nh.getHardware())->setBaud(115200);
   // nh.initNode();
   // nh.subscribe(sub);
 
@@ -71,52 +72,60 @@ void setup()
   pinMode(MOTOR_PWM, OUTPUT);
   pinMode(MOTOR_DIR, OUTPUT);
 
-  timer.every(interval, calc_pid);
+  t.every(interval, calc_pid);
 }
 
 void loop()
 {
-  if (Serial3.available() > 0) {
-    int input = Serial3.read();
-    setPoint = constrain(input, 0, INPUT_MAX_RANGE);
+  // nh.spinOnce();
+  
+  if (Serial3.available()) {
+    int input = Serial3.readString().toInt();
+    setPoint = constrain(input, -1* INPUT_MAX_RANGE, INPUT_MAX_RANGE);
   }
   
-  // nh.spinOnce();
-  timer.update();
+
+  t.update();
 }
 
 void calc_pid() {
   deltaTime = interval;
-    rpm = (enc_counter / ENC_REV_COUNT) * (MIN_IN_SECS * 1000 / deltaTime) ;
+  int deltaCount = enc_counter - last_count;
+  rpm = (( (float) deltaCount / ENC_REV_COUNT)) * (MIN_IN_SECS * 1000.0 / deltaTime);
 
-    error = setPoint - rpm;
-    integral += (error * deltaTime);
-    derivative = (error - lastError) / deltaTime;
-    lastError = error;
-    int output = Kp * error + Ki * integral + Kd * derivative;
+  error = setPoint - rpm;
+  integral += (error * deltaTime);
+  derivative = (error - lastError) / deltaTime;
+  lastError = error;
+  int output = Kp * error + Ki * integral + Kd * derivative;
 
-    if (output < 0) {
-      digitalWrite(MOTOR_DIR, LOW);
-    } else {
-      digitalWrite(MOTOR_DIR, HIGH);
-    }
+  if (output < 0) {
+    digitalWrite(MOTOR_DIR, LOW);
+  } else {
+    digitalWrite(MOTOR_DIR, HIGH);
+  }
 
-    output = abs(output);
-    output = constrain(output, 0, INPUT_MAX_RANGE);
-    output = map(output, 0, INPUT_MAX_RANGE, 0, PWM_RANGE);
+  output = abs(output);
+  output = constrain(output, 0, INPUT_MAX_RANGE);
+  output = map(output, 0, INPUT_MAX_RANGE, 0, PWM_RANGE);
 
   debug("PWM VALUE: ");
-    debug(output);
-    debug('\t');
-    debug(" PULSES: ");
-    debug(enc_counter);
-    debug('\t');
-    debug(" SPEED: ");
-    debug(rpm);
+  debug(output);
+  debug('\t');
+  debug("Encoder Count: ");
+  debug(enc_counter);
+  debug('\t');
+  debug(" SPEED: ");
+  debug(rpm);
+  debug('\t');
+  debug("SP: ");
+  debug(setPoint);
+  debugln(" ");
 
-    enc_counter = 0;
+  last_count =enc_counter;
+//  enc_counter = 0;
 
-  analogWrite(MOTOR_PWM, OUTPUT);
+  analogWrite(MOTOR_PWM, output);
 }
 
 void ISR_A()
