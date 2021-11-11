@@ -19,8 +19,6 @@ HardwareSerial Serial3(PB11, PB10);
 
 #define INPUT_MAX_RANGE 300
 
-#define motorDir HIGH
-
 #define MIN_IN_SECS 60
 #define PWM_RANGE 65535
 
@@ -39,7 +37,7 @@ const int interval = 10; // 10 ms
 
 volatile long long enc_counter = 0;
 
-int rpm = 0, motorPwm = 0;
+int rpm = 0;
 
 unsigned long  deltaTime = 0;
 
@@ -79,22 +77,10 @@ void setup()
 void loop()
 {
   if (Serial3.available() > 0) {
-    setPoint = constrain(Serial3.read(), 0, INPUT_MAX_RANGE);
+    int input = Serial3.read();
+    setPoint = constrain(input, 0, INPUT_MAX_RANGE);
   }
-
-  // Only update display when there is a reading
-  if (motorPwm > 0 || rpm > 0)
-  {
-    debug("PWM VALUE: ");
-    debug(motorPwm);
-    debug('\t');
-    debug(" PULSES: ");
-    debug(enc_counter);
-    debug('\t');
-    debug(" SPEED: ");
-    debug(rpm);
-    debugln(" RPM");
-  }
+  
   // nh.spinOnce();
   timer.update();
 }
@@ -118,6 +104,15 @@ void calc_pid() {
     output = abs(output);
     output = constrain(output, 0, INPUT_MAX_RANGE);
     output = map(output, 0, INPUT_MAX_RANGE, 0, PWM_RANGE);
+
+  debug("PWM VALUE: ");
+    debug(output);
+    debug('\t');
+    debug(" PULSES: ");
+    debug(enc_counter);
+    debug('\t');
+    debug(" SPEED: ");
+    debug(rpm);
 
     enc_counter = 0;
 
