@@ -37,7 +37,7 @@
 
 long enc_count = 0, last_count;
 
-double rpm = 0;
+float rpm = 0;
 
 double motorPwm = 0;
 
@@ -97,8 +97,9 @@ void calc_pid()
 {
   int deltaCount = enc_count - last_count;
   
+  
 
-  rpm = (((float)deltaCount / ENC_REV_COUNT)) * (MIN_IN_SECS * 1000.0 / deltaTime);
+  rpm = (((float)deltaCount / ENC_REV_COUNT)) * (MIN_IN_SECS * 1000.0 / deltaTime); // (revs * delta) / (60 *1000)
 
   error = setPoint - rpm;
   integral += (error * deltaTime);
