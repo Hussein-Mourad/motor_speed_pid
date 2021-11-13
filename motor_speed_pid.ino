@@ -6,9 +6,9 @@
 
 #define TOPIC_NAME "motor_pid"
 
-#define Kp 0.5
-#define Ki 0
-#define Kd 0
+#define Kp 0.03
+#define Ki 0.005
+#define Kd 0.02
 
 #define ENC_REV_COUNT 540
 #define ENC_A 4 // PA4
@@ -19,7 +19,7 @@
 
 #define INPUT_MAX_RANGE 300
 
-#define MIN_IN_SECS 60
+#define MIN_IN_MS 60000 // one minute in milli seconds 
 #define PWM_MAX_RANGE 65535
 
 // A simple way to toggle debugging and changing the used serial
@@ -35,16 +35,16 @@
 #define debugln(x)
 #endif
 
-long enc_count = 0, last_count;
+long enc_count = 0;
 
 float rpm = 0;
+long motorPwm = 0;
 
-double motorPwm = 0;
-
-const int deltaTime = 50; // 10ms interval
+const int deltaTime = 10; // 10ms interval
 
 int setPoint = 0;
-double error, lastError, proportional, integral, derivative;
+
+float error, lastError, integral, derivative;
 
 // void messageCb(const std_msgs::Int16 &sp)
 // {
@@ -77,8 +77,9 @@ void setup()
   pinMode(MOTOR_DIR, OUTPUT);
 
   t.every(deltaTime, calc_pid);
-
 }
+
+
 
 void loop()
 {
@@ -95,17 +96,16 @@ void loop()
 
 void calc_pid()
 {
-  int deltaCount = enc_count - last_count;
-  
-  
+  enc_count += 27;
 
-  rpm = (((float)deltaCount / ENC_REV_COUNT)) * (MIN_IN_SECS * 1000.0 / deltaTime); // (revs * delta) / (60 *1000)
+  rpm = ((float)enc_count / ENC_REV_COUNT) * (MIN_IN_MS / deltaTime);
 
   error = setPoint - rpm;
   integral += (error * deltaTime);
   derivative = (error - lastError) / deltaTime;
   lastError = error;
   motorPwm = Kp * error + Ki * integral + Kd * derivative;
+  motorPwm -= (2 * error * deltaTime);
 
   if (motorPwm < 0)
     digitalWrite(MOTOR_DIR, LOW);
@@ -116,15 +116,19 @@ void calc_pid()
   motorPwm = constrain(motorPwm, 0, PWM_MAX_RANGE);
   //  motorPwm = constrain(motorPwm, 0, INPUT_MAX_RANGE);
   //  motorPwm = map(motorPwm, 0, INPUT_MAX_RANGE, 0, PWM_MAX_RANGE);
-  debugT("deltaCount: ", deltaCount);
-  debugT("error: ", error);
+
+  debugT("deltaCount: ", enc_count);
+  debugT("e: ", error);
+  debugT("p: ", error);
+  debugT("i: ", integral);
+  debugT("d: ", derivative);
+
   debugT("PWM: ", motorPwm);
-  debugT("Count: ", enc_count);
-  debugT("Speed: ", rpm);
-  debugT("SP: ", setPoint);
+  debugT("rpm: ", rpm);
+  debugT("sp: ", setPoint);
   debugln();
 
-  last_count = enc_count;
+  enc_count = 0;
 
   analogWrite(MOTOR_PWM, motorPwm);
 }
