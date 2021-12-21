@@ -6,20 +6,19 @@ HardwareSerial Serial3(PB11, PB10);
 
 #define TOPIC_NAME "motor_pid"
 
-#define Kp 10.0
-#define Ki 0
-#define Kd 0
-#define Ti 60
+#define Kp 0.03
+#define Ki 0.005
+#define Kd 0.02
 
 
-#define ENC_A PB3  // PA4
-#define ENC_B PA15  // PA5
+#define ENC_A PA4  // PA4
+#define ENC_B PA5  // PA5
 
-#define MOTOR_PWM PB0  //PA0
-#define MOTOR_DIR PB1  //PA1
+#define MOTOR_PWM PA0  //PA0
+#define MOTOR_DIR PA1  //PA1
 
-#define ENC_REV_COUNT 540 
-#define INPUT_MAX_RANGE 600
+#define ENC_REV_COUNT 720
+#define INPUT_MAX_RANGE 300
 #define PWM_MAX_RANGE 65535
 #define MIN_IN_MS 60000  // one minute in milli seconds
 
@@ -36,12 +35,12 @@ HardwareSerial Serial3(PB11, PB10);
 #define debugln(x)
 #endif
 
-volatile long encoderCount = 0, lastCount=0;
+volatile long encoderCount = 0;
 
 float rpm = 0;
 long motorPwm = 0;
 
-const float deltaTime = 30;  // 10ms interval
+const int deltaTime = 10;  // 10ms interval
 
 int setPoint = 0;
 
@@ -78,7 +77,6 @@ void setup() {
   pinMode(MOTOR_DIR, OUTPUT);
 
   t.every(deltaTime, calc_pid);
-  analogWrite(MOTOR_PWM, 2000); 
 }
 
 
@@ -86,28 +84,25 @@ void setup() {
 void loop() {
   // nh.spinOnce();
 
-//  if (Serial3.available()) {
-//    int input = Serial3.readString().toInt();
- //   setPoint = constrain(input, -1 * INPUT_MAX_RANGE, INPUT_MAX_RANGE);
-//  }
+  if (Serial3.available()) {
+    int input = Serial3.readString().toInt();
+    setPoint = constrain(input, -1 * INPUT_MAX_RANGE, INPUT_MAX_RANGE);
+  }
 
-  setPoint = 100;
+  analogWrite(MOTOR_PWM, PWM_MAX_RANGE);
 
   t.update();
-  // analogWrite(MOTOR_PWM, 2000); 
 }
 
 void calc_pid() {
-  
-  rpm = ((float)(encoderCount-lastCount) / ENC_REV_COUNT) * (MIN_IN_MS / deltaTime);
+  rpm = ((float)encoderCount / ENC_REV_COUNT) * (MIN_IN_MS / deltaTime);
 
   error = setPoint - rpm;
   integral += (error * deltaTime);
   derivative = (error - lastError) / deltaTime;
   lastError = error;
-  float Kc = 1/Kp;
-  // motorPwm = Kc * error + (Kc/Ti) * integral + Kd * derivative;
-   motorPwm = Kc * error; 
+
+  motorPwm = (1/Kp) * error + (1/(60*Kp)) * integral + Kd * derivative;
 
   if (motorPwm < 0)
     digitalWrite(MOTOR_DIR, LOW);
@@ -119,24 +114,24 @@ void calc_pid() {
     integral -= (2 * error * deltaTime);
 
   motorPwm = constrain(motorPwm, 0, INPUT_MAX_RANGE);
-  // motorPwm = constrain(motorPwm, 0, PWM_MAX_RANGE);
-
-  motorPwm = map(motorPwm, 0, INPUT_MAX_RANGE, 0, PWM_MAX_RANGE);
   motorPwm = constrain(motorPwm, 0, PWM_MAX_RANGE);
 
- // debugT("deltaCount: ", encoderCount-lastCount);
-//  debugT("e: ", error);
-  debugT("p: ", Kc*error);
-//  debugT("i: ", integral);
+  //  motorPwm = map(motorPwm, 0, INPUT_MAX_RANGE, 0, PWM_MAX_RANGE);
 
- debugT("PWM: ", motorPwm);
- debugT("rpm: ", rpm);
- debugT("sp: ", setPoint);
+  debugT("deltaCount: ", encoderCount);
+  debugT("e: ", error);
+  debugT("p: ", error);
+  debugT("i: ", integral);
+  debugT("d: ", derivative);
+
+  debugT("PWM: ", motorPwm);
+  debugT("rpm: ", rpm);
+  debugT("sp: ", setPoint);
   debugln();
 
-  lastCount= encoderCount;
+  encoderCount = 0;
 
-  // analogWrite(MOTOR_PWM, motorPwm);
+  analogWrite(MOTOR_PWM, motorPwm);
 }
 
 void ISR_A() {
