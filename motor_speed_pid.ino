@@ -1,6 +1,8 @@
 // #include <ros.h>
 // #include <std_msgs/Int16.h>
 #include <Timer.h>
+#include "Configuration.h"
+
 
 HardwareSerial Serial3(PB11, PB10);
 
@@ -64,9 +66,13 @@ Timer t;
 void setup()
 {
 
+
+
 #ifdef DEBUG
   Serial3.begin(115200);
 #endif
+
+debug(X);
 
   // (nh.getHardware())->setPort(&Serial1);
   // (nh.getHardware())->setBaud(115200);
